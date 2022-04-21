@@ -4,20 +4,14 @@ import glob, sys
 success = False
 in_ironpython = "IronPython" in sys.version
 
-if in_ironpython:
-    try:
+try:
+    if in_ironpython:
         from .ironpython_console import *
-        success = True
-    except ImportError:
-        raise
-else:
-    try:
+    else:
         from .console import *
-        success = True
-    except ImportError:
-        pass
-        raise
-
+    success = True
+except ImportError:
+    raise
 if not success:
     raise ImportError(
             "Could not find a console implementation for your platform")

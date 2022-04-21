@@ -42,9 +42,9 @@ class IncrementalSearchPromptMode(object):
                 revtuples.append(ktuple)
             elif func == self.forward_search_history:
                 fwdtuples.append(ktuple)
-        
-        
-        log("IncrementalSearchPromptMode %s %s"%(keyinfo, keytuple))
+
+
+        log(f"IncrementalSearchPromptMode {keyinfo} {keytuple}")
         if keyinfo.keyname == 'backspace':
             self.subsearch_query = self.subsearch_query[:-1]
             if len(self.subsearch_query) > 0:
@@ -73,8 +73,6 @@ class IncrementalSearchPromptMode(object):
         elif keyinfo.control == False and keyinfo.meta == False:
             self.subsearch_query += keyinfo.char
             self.line = self.subsearch_fun(self.subsearch_query)
-        else:
-            pass
         self.prompt = self.subsearch_prompt%(self._history.history_cursor, self.subsearch_query)
         self.l_buffer.set_line(self.line)
 
@@ -91,9 +89,11 @@ class IncrementalSearchPromptMode(object):
 
         self.subsearch_oldprompt = self.prompt
 
-        if (self.previous_func != self.reverse_search_history and
-            self.previous_func != self.forward_search_history):
-            self.subsearch_query = self.l_buffer[0:Point].get_line_text()
+        if self.previous_func not in [
+            self.reverse_search_history,
+            self.forward_search_history,
+        ]:
+            self.subsearch_query = self.l_buffer[:Point].get_line_text()
 
         if self.subsearch_fun == self.reverse_search_history:
             self.subsearch_prompt = "reverse-i-search%d`%s': "
@@ -114,7 +114,7 @@ class SearchPromptMode(object):
 
     def _process_non_incremental_search_keyevent(self, keyinfo):
         keytuple = keyinfo.tuple()
-        log("SearchPromptMode %s %s"%(keyinfo, keytuple))
+        log(f"SearchPromptMode {keyinfo} {keytuple}")
         history = self._history
 
         if keyinfo.keyname == 'backspace':
@@ -139,9 +139,7 @@ class SearchPromptMode(object):
             pass
         elif keyinfo.control == False and keyinfo.meta == False:
             self.non_inc_query += keyinfo.char
-        else:
-            pass
-        self.prompt = self.non_inc_oldprompt + ":" + self.non_inc_query
+        self.prompt = f"{self.non_inc_oldprompt}:{self.non_inc_query}"
 
     def _init_non_i_search(self, direction):
         self.non_inc_direction = direction
@@ -149,7 +147,7 @@ class SearchPromptMode(object):
         self.non_inc_oldprompt = self.prompt
         self.non_inc_oldline = self.l_buffer.copy()
         self.l_buffer.reset_line()
-        self.prompt = self.non_inc_oldprompt + ":"
+        self.prompt = f"{self.non_inc_oldprompt}:"
         queue = self.process_keyevent_queue
         queue.append(self._process_non_incremental_search_keyevent)
 
@@ -175,9 +173,9 @@ class DigitArgumentMode(object):
         pass
 
     def _process_digit_argument_keyevent(self, keyinfo):
-        log("DigitArgumentMode.keyinfo %s"%keyinfo)
+        log(f"DigitArgumentMode.keyinfo {keyinfo}")
         keytuple = keyinfo.tuple()
-        log("DigitArgumentMode.keytuple %s %s"%(keyinfo, keytuple))
+        log(f"DigitArgumentMode.keytuple {keyinfo} {keytuple}")
         if keyinfo.keyname in ['return']:
             self.prompt = self._digit_argument_oldprompt
             self.process_keyevent_queue = self.process_keyevent_queue[:-1]
@@ -187,12 +185,12 @@ class DigitArgumentMode(object):
         elif (keyinfo.char in "0123456789" and
               keyinfo.control == False and
               keyinfo.meta == False):
-            log("arg %s %s"%(self.argument, keyinfo.char))
+            log(f"arg {self.argument} {keyinfo.char}")
             self.argument = self.argument * 10 + int(keyinfo.char)
         else:
             self.prompt = self._digit_argument_oldprompt
             raise LeaveModeTryNext
-        self.prompt = "(arg: %s) "%self.argument
+        self.prompt = f"(arg: {self.argument}) "
 
     def _init_digit_argument(self, keyinfo):
         """Initialize search prompt
@@ -208,9 +206,9 @@ class DigitArgumentMode(object):
             self.argument = -1
         elif keyinfo.char in "0123456789":
             self.argument = int(keyinfo.char)
-        log("<%s> %s"%(self.argument, type(self.argument)))
-        self.prompt = "(arg: %s) "%self.argument
-        log("arg-init %s %s"%(self.argument, keyinfo.char))
+        log(f"<{self.argument}> {type(self.argument)}")
+        self.prompt = f"(arg: {self.argument}) "
+        log(f"arg-init {self.argument} {keyinfo.char}")
 
 
 class EmacsMode(DigitArgumentMode, IncrementalSearchPromptMode,
@@ -623,7 +621,7 @@ class EmacsMode(DigitArgumentMode, IncrementalSearchPromptMode,
         #Should not finalize
 
     #Create key bindings:
-    def init_editing_mode(self, e):  # (C-e)
+    def init_editing_mode(self, e):    # (C-e)
         '''When in vi command mode, this causes a switch to emacs editing
         mode.'''
         self._bind_exit_key('Control-d')
@@ -710,7 +708,7 @@ class EmacsMode(DigitArgumentMode, IncrementalSearchPromptMode,
         self._bind_key("divide",            self.self_insert)
         self._bind_key("vk_decimal",        self.self_insert)
         log("RUNNING INIT EMACS")
-        for i in range(0, 10):
+        for i in range(10):
             self._bind_key("alt-%d"%i,      self.digit_argument)
         self._bind_key("alt--",             self.digit_argument)
 

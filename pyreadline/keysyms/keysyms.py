@@ -117,17 +117,17 @@ def make_KeyPress(char, state, keycode):
     control = (state & (4+8)) != 0
     meta = (state & (1+2)) != 0
     shift = (state & 0x10) != 0
-    if control and not meta:#Matches ctrl- chords should pass keycode as char
-        char = chr(keycode)
-    elif control and meta:  #Matches alt gr and should just pass on char
-        control = False
-        meta = False
+    if control:
+        if meta:
+            control = False
+            meta = False
+        else:
+            char = chr(keycode)
     try:
         keyname=code2sym_map[keycode]
     except KeyError:
         keyname = ""
-    out = KeyPress(char, shift, control, meta, keyname)
-    return out
+    return KeyPress(char, shift, control, meta, keyname)
 
 if __name__ == "__main__":
     import startup

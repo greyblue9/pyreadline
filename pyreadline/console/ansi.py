@@ -84,8 +84,7 @@ class AnsiWriter(object):
         n = 0 # count the characters we actually write, omitting the escapes
         res=[]
         for chunk in chunks:
-            m = escape_parts.match(chunk)
-            if m:
+            if m := escape_parts.match(chunk):
                 parts = m.group(1).split(";")
                 if len(parts) == 1 and parts[0] == "0":
                     attr = self.defaultstate.copy()
@@ -104,8 +103,7 @@ class AnsiWriter(object):
                         attr.backgroundcolor = trtable[int(part) - 40]
                 continue
             n += len(chunk)
-            if True:
-                res.append((attr.copy(), chunk))
+            res.append((attr.copy(), chunk))
         return n,res
 
     def parse_color(self,text, attr=None):
@@ -127,8 +125,7 @@ def write_color_old( text, attr=None):
     if attr is None:#use attribute from initial console
         attr = 15
     for chunk in chunks:
-        m = escape_parts.match(chunk)
-        if m:
+        if m := escape_parts.match(chunk):
             for part in m.group(1).split(";"):
                 if part == "0": # No text attribute
                     attr = 0

@@ -104,9 +104,7 @@ def make_keysym(keycode):
         sym = ''
     return sym
 
-sym2code_map = {}
-for code,sym in code2sym_map.items():
-    sym2code_map[sym.lower()] = code
+sym2code_map = {sym.lower(): code for code,sym in code2sym_map.items()}
 
 def key_text_to_keyinfo(keytext):
     '''Convert a GNU readline style textual description of a key to keycode with modifiers'''
@@ -151,11 +149,10 @@ def keyname_to_keyinfo(keyname):
         elif lkeyname.startswith('shift-'):
             shift = True
             keyname = keyname[6:]
+        elif len(keyname) > 1:
+            return (control, meta, shift, sym2code_map.get(keyname.lower()," "))
         else:
-            if len(keyname) > 1:
-                return (control, meta, shift, sym2code_map.get(keyname.lower()," "))
-            else:
-                return char_to_keyinfo(keyname, control, meta, shift)
+            return char_to_keyinfo(keyname, control, meta, shift)
 
 def keyseq_to_keyinfo(keyseq):
     res = []

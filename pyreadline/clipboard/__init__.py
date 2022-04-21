@@ -2,17 +2,13 @@ from __future__ import print_function, unicode_literals, absolute_import
 import sys
 success = True
 in_ironpython = "IronPython" in sys.version
-if in_ironpython:
-    try:
+try:
+    if in_ironpython:
         from .ironpython_clipboard import GetClipboardText, SetClipboardText
-    except ImportError:
-        from .no_clipboard import GetClipboardText, SetClipboardText
-
-else:
-    try:
+    else:
         from .win32_clipboard import GetClipboardText, SetClipboardText
-    except ImportError:
-        from .no_clipboard import GetClipboardText, SetClipboardText
+except ImportError:
+    from .no_clipboard import GetClipboardText, SetClipboardText
     
 
 def send_data(lists):
@@ -28,9 +24,9 @@ def make_tab(lists):
     ut = []
     for rad in lists:
         if type(rad) in [list, tuple]:
-            ut.append("\t".join(["%s"%x for x in rad]))
+            ut.append("\t".join([f"{x}" for x in rad]))
         else:
-            ut.append("%s"%rad)
+            ut.append(f"{rad}")
     return "\n".join(ut)            
     
 def make_list_of_list(txt):
@@ -61,13 +57,9 @@ def get_clipboard_text_and_convert(paste_list=False):
     data to list of lists. Enclose list of list in array() if all elements are 
     numeric"""
     txt = GetClipboardText()
-    if txt:
-        if paste_list and "\t" in txt:
-            array, flag = make_list_of_list(txt)
-            if flag:
-                txt = repr(array)
-            else:
-                txt = "array(%s)"%repr(array)
-            txt = "".join([c for c in txt if c not in " \t\r\n"])
+    if txt and paste_list and "\t" in txt:
+        array, flag = make_list_of_list(txt)
+        txt = repr(array) if flag else f"array({repr(array)})"
+        txt = "".join([c for c in txt if c not in " \t\r\n"])
     return txt
 

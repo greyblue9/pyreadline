@@ -51,8 +51,8 @@ class EmacsModeTest (EmacsMode):
         return self.l_buffer.point
     line_cursor = property (get_line_cursor)
 
-    def input (self, keytext):
-        if keytext[0:1] == '"' and keytext[-1:] == '"':
+    def input(self, keytext):
+        if keytext[:1] == '"' and keytext[-1:] == '"':
             lst_key = ['"%s"' % c for c in keytext[1:-1]]
         else:
             lst_key = [keytext]
@@ -384,12 +384,11 @@ class TestsHistory (unittest.TestCase):
 
 if __name__ == '__main__':
     Tester()
-    tested=list(EmacsModeTest.tested_commands.keys())    
-    tested.sort()
+    tested = sorted(EmacsModeTest.tested_commands.keys())
 #    print(" Tested functions ".center(60,"-"))
 #    print( "\n".join(tested))
 #    print()
-    
+
     all_funcs=dict([(x.__name__,x) for x in list(EmacsModeTest().key_dispatch.values())])
     all_funcs=list(all_funcs.keys())
     not_tested=[x for x in all_funcs if x not in tested]

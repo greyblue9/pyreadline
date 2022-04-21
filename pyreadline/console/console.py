@@ -60,10 +60,9 @@ MENU_EVENT = 0x0008
 VK_SHIFT = 0x10
 VK_CONTROL = 0x11
 VK_MENU = 0x12
-GENERIC_READ = int(0x80000000)
+GENERIC_READ = 2147483648
 GENERIC_WRITE = 0x40000000
 
-# Windows structures we'll need later
 class COORD(Structure):
     _fields_ = [("X", c_short),
                 ("Y", c_short)]
@@ -254,9 +253,9 @@ class Console(object):
         if x < 0 or y < 0:
             info = CONSOLE_SCREEN_BUFFER_INFO()
             self.GetConsoleScreenBufferInfo(self.hout, byref(info))
-            if x < 0:
-                x = info.srWindow.Right - x
-                y = info.srWindow.Bottom + y
+        if x < 0:
+            x = info.srWindow.Right - x
+            y = info.srWindow.Bottom + y
 
         # this is a hack! ctypes won't pass structures but COORD is 
         # just like a long, so this works.
@@ -264,13 +263,12 @@ class Console(object):
 
     def pos(self, x=None, y=None):
         '''Move or query the window cursor.'''
-        if x is None:
-            info = CONSOLE_SCREEN_BUFFER_INFO()
-            self.GetConsoleScreenBufferInfo(self.hout, byref(info))
-            return (info.dwCursorPosition.X, info.dwCursorPosition.Y)
-        else:
+        if x is not None:
             return self.SetConsoleCursorPosition(self.hout, 
                                                  self.fixcoord(x, y))
+        info = CONSOLE_SCREEN_BUFFER_INFO()
+        self.GetConsoleScreenBufferInfo(self.hout, byref(info))
+        return (info.dwCursorPosition.X, info.dwCursorPosition.Y)
 
     def home(self):
         '''Move to home.'''
@@ -365,8 +363,8 @@ class Console(object):
         n, res= self.ansiwriter.write_color(text, attr)
         junk = DWORD(0)
         for attr,chunk in res:
-            log("console.attr:%s"%(attr))
-            log("console.chunk:%s"%(chunk))
+            log(f"console.attr:{attr}")
+            log(f"console.chunk:{chunk}")
             self.SetConsoleTextAttribute(self.hout, attr.winattr)
             for short_chunk in split_block(chunk):
                 self.WriteConsoleW(self.hout, short_chunk, 
@@ -515,15 +513,14 @@ class Console(object):
             status = self.ReadConsoleInputW(self.hin, 
                                         byref(Cevent), 1, byref(count))
             if status and count.value == 1:
-                e = event(self, Cevent)
-                return e
+                return event(self, Cevent)
 
     def getkeypress(self):
         '''Return next key press event from the queue, ignoring others.'''
         while 1:
             e = self.get()
             if e.type == 'KeyPress' and e.keycode not in key_modifiers:
-                log("console.getkeypress %s"%e)
+                log(f"console.getkeypress {e}")
                 if e.keyinfo.keyname == 'next':
                     self.scroll_window(12)
                 elif e.keyinfo.keyname == 'prior':
@@ -532,7 +529,7 @@ class Console(object):
                     return e
             elif ((e.type == 'KeyRelease') and 
                   (e.keyinfo == KeyPress('S', False, True, False, 'S'))):
-                log("getKeypress:%s,%s,%s"%(e.keyinfo, e.keycode, e.type))
+                log(f"getKeypress:{e.keyinfo},{e.keycode},{e.type}")
                 return e
             
                 
@@ -578,17 +575,16 @@ class Console(object):
         status = self.GetConsoleScreenBufferInfo(self.hout, byref(info))
         if not status:
             return None
-        if width is not None and height is not None:
-            wmin = info.srWindow.Right - info.srWindow.Left + 1
-            hmin = info.srWindow.Bottom - info.srWindow.Top + 1
-            #print wmin, hmin
-            width = max(width, wmin)
-            height = max(height, hmin)
-            #print width, height
-            self.SetConsoleScreenBufferSize(self.hout, 
-                                            self.fixcoord(width, height))
-        else:
+        if width is None or height is None:
             return (info.dwSize.X, info.dwSize.Y)
+        wmin = info.srWindow.Right - info.srWindow.Left + 1
+        hmin = info.srWindow.Bottom - info.srWindow.Top + 1
+        #print wmin, hmin
+        width = max(width, wmin)
+        height = max(height, hmin)
+        #print width, height
+        self.SetConsoleScreenBufferSize(self.hout, 
+                                        self.fixcoord(width, height))
 
     def cursor(self, visible=None, size=None):
         '''Set cursor on or off.'''
@@ -696,12 +692,9 @@ class event(Event):
         self.keysym = '??'
         self.keyinfo = None # a tuple with (control, meta, shift, keycode) for dispatch
         self.width = None
-        
+
         if input.EventType == KEY_EVENT:
-            if input.Event.KeyEvent.bKeyDown:
-                self.type = "KeyPress"
-            else:
-                self.type = "KeyRelease"
+            self.type = "KeyPress" if input.Event.KeyEvent.bKeyDown else "KeyRelease"
             self.char = input.Event.KeyEvent.uChar.UnicodeChar
             self.keycode = input.Event.KeyEvent.wVirtualKeyCode
             self.state = input.Event.KeyEvent.dwControlKeyState
@@ -720,25 +713,20 @@ class event(Event):
             self.width = input.Event.WindowBufferSizeEvent.dwSize.X
             self.height = input.Event.WindowBufferSizeEvent.dwSize.Y
         elif input.EventType == FOCUS_EVENT:
-            if input.Event.FocusEvent.bSetFocus:
-                self.type = "FocusIn"
-            else:
-                self.type = "FocusOut"
+            self.type = "FocusIn" if input.Event.FocusEvent.bSetFocus else "FocusOut"
         elif input.EventType == MENU_EVENT:
             self.type = "Menu"
             self.state = input.Event.MenuEvent.dwCommandId
 
 
 def getconsole(buffer=1):
-        """Get a console handle.
+    """Get a console handle.
 
         If buffer is non-zero, a new console buffer is allocated and
         installed.  Otherwise, this returns a handle to the current
         console buffer"""
 
-        c = Console(buffer)
-
-        return c
+    return Console(buffer)
 
 # The following code uses ctypes to allow a Python callable to
 # substitute for GNU readline within the Python interpreter. Calling
@@ -775,10 +763,6 @@ def hook_wrapper_23(stdin, stdout, prompt):
     except EOFError:
         # It returns an empty string on EOF
         res = ensure_str('')
-    except:
-        print('Readline internal error', file=sys.stderr)
-        traceback.print_exc()
-        res = ensure_str('\n')
     # we have to make a copy because the caller expects to free the result
     n = len(res)
     p = Console.PyMem_Malloc(n + 1)

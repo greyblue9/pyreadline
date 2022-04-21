@@ -11,11 +11,7 @@ clr.AddReferenceByPartialName("System.Windows.Forms")
 import System.Windows.Forms.Clipboard as cb
 
 def GetClipboardText():
-    text = ""
-    if cb.ContainsText():
-        text = cb.GetText()
-
-    return text
+    return cb.GetText() if cb.ContainsText() else ""
 
 def SetClipboardText(text):
     cb.SetText(text)    

@@ -24,10 +24,8 @@ host = 'localhost'
 def check_key():
     if msvcrt is None:
         return False
-    else:
-        if msvcrt.kbhit():
-            q = ensure_unicode(msvcrt.getch())
-            return q
+    if msvcrt.kbhit():
+        return ensure_unicode(msvcrt.getch())
     return ""
 
 
@@ -47,10 +45,10 @@ def main():
             print(data, end="")
         except socket.timeout:
             key = check_key().lower()
-            if "q" == key:
+            if key == "q":
                 print("Quitting logserver")
                 break
-            elif "c" == key:
+            elif key == "c":
                 print("\n" * 100)  
 
 if __name__ == "__main__":

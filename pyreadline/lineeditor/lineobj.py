@@ -32,18 +32,12 @@ class LinePositioner(object):
 
 class NextChar(LinePositioner):
     def __call__(self, line):
-        if line.point < len(line.line_buffer):
-            return line.point + 1
-        else:
-            return line.point
+        return line.point + 1 if line.point < len(line.line_buffer) else line.point
 NextChar = NextChar()
 
 class PrevChar(LinePositioner):
     def __call__(self, line):
-        if line.point > 0:
-            return line.point - 1
-        else:
-            return line.point
+        return line.point - 1 if line.point > 0 else line.point
 PrevChar = PrevChar()
 
 class NextWordStart(LinePositioner):
@@ -64,24 +58,26 @@ PrevWordStart = PrevWordStart()
 
 class WordStart(LinePositioner):
     def __call__(self, line):
-        if line.is_word_token(line.get_line_text()[Point(line):Point(line) + 1]):
-            if Point(line) > 0 and line.is_word_token(line.get_line_text()[Point(line) - 1:Point(line)]):
-                return PrevWordStart(line)
-            else:
-                return line.point
-        else:   
+        if not line.is_word_token(
+            line.get_line_text()[Point(line) : Point(line) + 1]
+        ):
             raise NotAWordError("Point is not in a word")
+        if Point(line) > 0 and line.is_word_token(line.get_line_text()[Point(line) - 1:Point(line)]):
+            return PrevWordStart(line)
+        else:
+            return line.point
 WordStart = WordStart()
 
 class WordEnd(LinePositioner):
     def __call__(self, line):
-        if line.is_word_token(line.get_line_text()[Point(line):Point(line) + 1]):
-            if line.is_word_token(line.get_line_text()[Point(line) + 1:Point(line) + 2]):
-                return NextWordEnd(line)
-            else:
-                return line.point
-        else:   
+        if not line.is_word_token(
+            line.get_line_text()[Point(line) : Point(line) + 1]
+        ):
             raise NotAWordError("Point is not in a word")
+        if line.is_word_token(line.get_line_text()[Point(line) + 1:Point(line) + 2]):
+            return NextWordEnd(line)
+        else:
+            return line.point
 WordEnd = WordEnd()
 
 class PrevWordEnd(LinePositioner):
@@ -173,25 +169,12 @@ class TextLine(object):
         self.overwrite = False
         if isinstance(txtstr, TextLine): #copy 
             self.line_buffer = txtstr.line_buffer[:]
-            if point is None:
-                self.point = txtstr.point
-            else:                
-                self.point = point
-            if mark is None:
-                self.mark = txtstr.mark
-            else:
-                self.mark = mark
-        else:            
+            self.point = txtstr.point if point is None else point
+            self.mark = txtstr.mark if mark is None else mark
+        else:        
             self._insert_text(txtstr)
-            if point is None:
-                self.point = 0
-            else:
-                self.point = point
-            if mark is None:
-                self.mark = -1
-            else:
-                self.mark = mark
-
+            self.point = 0 if point is None else point
+            self.mark = -1 if mark is None else mark
         self.is_word_token = wordmatcher.is_word_token
         self.next_start_segment = wordmatcher.next_start_segment
         self.next_end_segment = wordmatcher.next_end_segment
@@ -220,8 +203,6 @@ class TextLine(object):
             self.line_buffer = undo.line_buffer
             self.point = undo.point
             self.mark = undo.mark
-        else:
-            pass
         
     def __repr__(self):
         return 'TextLine("%s",point=%s,mark=%s)'%(self.line_buffer, self.point, self.mark)
@@ -232,9 +213,8 @@ class TextLine(object):
     def set_point(self,value):
         if isinstance(value, LinePositioner):
             value = value(self)
-        assert  (value <= len(self.line_buffer))           
-        if value > len(self.line_buffer):
-            value = len(self.line_buffer)
+        assert  (value <= len(self.line_buffer))
+        value = min(value, len(self.line_buffer))
         self._point = value
     def get_point(self):
         return self._point
@@ -257,11 +237,8 @@ class TextLine(object):
         return ''.join(buf)
             
     def set_line(self, text, cursor = None):
-        self.line_buffer = [ c for c in str(text) ]
-        if cursor is None:
-            self.point = len(self.line_buffer)
-        else:
-            self.point = cursor
+        self.line_buffer = list(str(text))
+        self.point = len(self.line_buffer) if cursor is None else cursor
 
     def reset_line(self):
         self.line_buffer = []
@@ -288,9 +265,7 @@ class TextLine(object):
         if isinstance(key, LineSlice): 
             key = key(self)
         if isinstance(key, slice):
-            if key.step is None:
-                pass
-            else:
+            if key.step is not None:
                 raise Error
             if key.start is None:
                 start = StartOfLine(self)
@@ -339,7 +314,7 @@ class TextLine(object):
         self.line_buffer = prev + rest
         if point > stop:
             self.point = point - (stop - start)
-        elif point >= start and point <= stop:
+        elif point >= start:
             self.point = start
 
 
@@ -435,42 +410,42 @@ class ReadLineTextBuffer(TextLine):
         if argument < 0:
             self.backward_char(-argument)
         self.selection_mark = -1
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextChar
         
     def backward_char(self, argument=1):
         if argument < 0:
             self.forward_char(-argument)
         self.selection_mark = -1
-        for x in range(argument):
+        for _ in range(argument):
             self.point = PrevChar
         
     def forward_word(self,argument=1):
         if argument<0:
             self.backward_word(-argument)
         self.selection_mark=-1
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextWordStart
        
     def backward_word(self, argument=1):
         if argument < 0:
             self.forward_word(-argument)
         self.selection_mark = -1
-        for x in range(argument):
+        for _ in range(argument):
             self.point = PrevWordStart
 
     def forward_word_end(self, argument=1):
         if argument < 0:
             self.backward_word_end(-argument)
         self.selection_mark = -1
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextWordEnd
 
     def backward_word_end(self, argument=1):
         if argument < 0:
             self.forward_word_end(-argument)
         self.selection_mark = -1
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextWordEnd
 
 ######### Movement select
@@ -489,7 +464,7 @@ class ReadLineTextBuffer(TextLine):
             self.backward_char_extend_selection(-argument)
         if self.enable_selection and self.selection_mark < 0:
             self.selection_mark = self.point
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextChar
         
     def backward_char_extend_selection(self, argument=1):
@@ -497,7 +472,7 @@ class ReadLineTextBuffer(TextLine):
             self.forward_char_extend_selection(-argument)
         if self.enable_selection and self.selection_mark < 0:
             self.selection_mark = self.point
-        for x in range(argument):
+        for _ in range(argument):
             self.point = PrevChar
         
     def forward_word_extend_selection(self, argument=1):
@@ -505,7 +480,7 @@ class ReadLineTextBuffer(TextLine):
             self.backward_word_extend_selection(-argument)
         if self.enable_selection and self.selection_mark < 0:
             self.selection_mark = self.point
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextWordStart
        
     def backward_word_extend_selection(self, argument=1):
@@ -513,7 +488,7 @@ class ReadLineTextBuffer(TextLine):
             self.forward_word_extend_selection(-argument)
         if self.enable_selection and self.selection_mark < 0:
             self.selection_mark = self.point
-        for x in range(argument):
+        for _ in range(argument):
             self.point = PrevWordStart
 
        
@@ -522,7 +497,7 @@ class ReadLineTextBuffer(TextLine):
             self.backward_word_end_extend_selection(-argument)
         if self.enable_selection and self.selection_mark < 0:
             self.selection_mark = self.point
-        for x in range(argument):
+        for _ in range(argument):
             self.point = NextWordEnd
 
     def backward_word_end_extend_selection(self, argument=1):
@@ -530,7 +505,7 @@ class ReadLineTextBuffer(TextLine):
             self.forward_word_end_extend_selection(-argument)
         if self.enable_selection and self.selection_mark < 0:
             self.selection_mark = self.point
-        for x in range(argument):
+        for _ in range(argument):
             self.point = PrevWordEnd
 
 
@@ -540,10 +515,9 @@ class ReadLineTextBuffer(TextLine):
         if self.enable_selection and self.selection_mark >= 0:
             if self.selection_mark < self.point:
                 del self[self.selection_mark:self.point]
-                self.selection_mark = -1
-            else:                
+            else:        
                 del self[self.point:self.selection_mark]
-                self.selection_mark = -1
+            self.selection_mark = -1
             return True
         else:
             self.selection_mark = -1
@@ -554,7 +528,7 @@ class ReadLineTextBuffer(TextLine):
             self.backward_delete_char(-argument)
         if self.delete_selection():
             argument -= 1
-        for x in range(argument):
+        for _ in range(argument):
             del self[Point]
         
     def backward_delete_char(self, argument=1):
@@ -562,7 +536,7 @@ class ReadLineTextBuffer(TextLine):
             self.delete_char(-argument)
         if self.delete_selection():
             argument -= 1
-        for x in range(argument):
+        for _ in range(argument):
             if self.point > 0:
                 self.backward_char()
                 self.delete_char()
@@ -572,7 +546,7 @@ class ReadLineTextBuffer(TextLine):
             self.backward_delete_word(-argument)
         if self.delete_selection():
             argument -= 1
-        for x in range(argument):
+        for _ in range(argument):
             del self[Point:NextWordStart]
 
     def backward_delete_word(self, argument=1):
@@ -580,7 +554,7 @@ class ReadLineTextBuffer(TextLine):
             self.forward_delete_word(-argument)
         if self.delete_selection():
             argument -= 1
-        for x in range(argument):
+        for _ in range(argument):
             del self[PrevWordStart:Point]
 
     def delete_current_word(self):
@@ -661,7 +635,6 @@ class ReadLineTextBuffer(TextLine):
         
     def unix_line_discard(self):
         del self[StartOfLine:Point]
-        pass
 
     def kill_word(self):
         """Kills to next word ending"""
@@ -762,17 +735,14 @@ q = TextLine("asff asFArw  ewrWErhg", point=8)
 def show_pos(buff, pos, chr = "."):
     l = len(buff.line_buffer)
     def choice(bool):
-        if bool:
-            return chr
-        else:
-            return " "
+        return chr if bool else " "
     return "".join([choice(pos==idx) for idx in range(l + 1)])
 
 
 def test_positioner(buff, points, positioner):
-    print((" %s "%positioner.__class__.__name__).center(40, "-"))
+    print(f" {positioner.__class__.__name__} ".center(40, "-"))
     buffstr = buff.line_buffer
-    
+
     print('"%s"'%(buffstr))
     for point in points:
         b = TextLine(buff, point = point)

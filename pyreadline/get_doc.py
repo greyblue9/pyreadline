@@ -14,7 +14,12 @@ def get_rest(rl):
     q = get_doc(rl)
     out = []
     for funcname, doc in q:
-        out.append(funcname)
-        out.append("\n".join(textwrap.wrap(doc, 80, initial_indent="   ")))
-        out.append("")
+        out.extend(
+            (
+                funcname,
+                "\n".join(textwrap.wrap(doc, 80, initial_indent="   ")),
+                "",
+            )
+        )
+
     return out     

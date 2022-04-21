@@ -31,12 +31,10 @@ def KeyPress_from_event(event):
     control=event.state&4!=0
     meta=event.state&(131072)!=0
 
-    if len(keysym)==1 and control and meta:
+    if len(keysym)==1:
+        if not control or not meta:
+            char=keysym
         keysym=""
-    elif len(keysym)==1:
-        char=keysym
-        keysym=""
-
     return KeyPress(char, shift, control, meta, keysym)
 
 
@@ -64,7 +62,7 @@ class App:
             self.frame.quit()
             return
         if result:
-            self.lines.append(self.prompt+" "+self.RL.get_line_buffer())
+            self.lines.append(f"{self.prompt} {self.RL.get_line_buffer()}")
             line=self.RL.get_line_buffer()
             if line.strip():
                 try:
@@ -80,7 +78,9 @@ class App:
         self.RL.readline_setup(prompt)
         
     def _update_line(self):
-        self.textvar.set("\n".join(self.lines+[self.prompt+" "+self.RL.get_line_buffer()]))
+        self.textvar.set(
+            "\n".join(self.lines + [f"{self.prompt} {self.RL.get_line_buffer()}"])
+        )
         
         
         

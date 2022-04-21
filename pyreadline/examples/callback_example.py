@@ -23,7 +23,10 @@ maxlines = 10
 
 
 def main():
-    readline.callback_handler_install('Starting test, please do type:' + os.linesep, lineReceived)
+    readline.callback_handler_install(
+        f'Starting test, please do type:{os.linesep}', lineReceived
+    )
+
     index = 0
     start = int(time.time())
     while prompting:
@@ -40,13 +43,15 @@ def main():
 def lineReceived(line):
     global count, prompting
     count += 1
-    print("Got line: %s" % line)
+    print(f"Got line: {line}")
     if count > maxlines:
         prompting = False
         readline.callback_handler_remove()
     else:
-        readline.callback_handler_install('Got %s of %s, more typing please:' % (count, maxlines)
-                                          + os.linesep, lineReceived)
+        readline.callback_handler_install(
+            (f'Got {count} of {maxlines}, more typing please:' + os.linesep),
+            lineReceived,
+        )
 
 
 

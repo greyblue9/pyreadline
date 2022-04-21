@@ -33,12 +33,14 @@ class NotEmacsMode(basemode.BaseMode):
                 event.keyinfo = (control, True, shift, code)
 
             #Process exit keys. Only exit on empty line
-            if event.keyinfo in self.exit_dispatch:
-                if lineobj.EndOfLine(self.l_buffer) == 0:
-                    raise EOFError
+            if (
+                event.keyinfo in self.exit_dispatch
+                and lineobj.EndOfLine(self.l_buffer) == 0
+            ):
+                raise EOFError
 
             dispatch_func = self.key_dispatch.get(event.keyinfo,self.self_insert)
-            log("readline from keyboard:%s"%(event.keyinfo,))
+            log(f"readline from keyboard:{event.keyinfo}")
             r = None
             if dispatch_func:
                 r = dispatch_func(event)
@@ -74,19 +76,17 @@ class NotEmacsMode(basemode.BaseMode):
                 traceback.print_exc()
                 self.pre_input_hook = None
 
-        log("in readline: %s"%self.paste_line_buffer)
+        log(f"in readline: {self.paste_line_buffer}")
         if len(self.paste_line_buffer)>0:
             self.l_buffer=lineobj.ReadlineTextBuffer(self.paste_line_buffer[0])
             self._update_line()
             self.paste_line_buffer=self.paste_line_buffer[1:]
-            c.write('\r\n')
         else:
             self._readline_from_keyboard()
-            c.write('\r\n')
-
+        c.write('\r\n')
         self.add_history(self.l_buffer.copy())
 
-        log('returning(%s)' % self.l_buffer.get_line_text())
+        log(f'returning({self.l_buffer.get_line_text()})')
         return self.l_buffer.get_line_text() + '\n'
 
     ### Methods below here are bindable emacs functions
@@ -159,11 +159,7 @@ class NotEmacsMode(basemode.BaseMode):
         while 1:
             x, y = self.prompt_end_pos
             c.pos(0, y)
-            if direction < 0:
-                prompt = 'reverse-i-search'
-            else:
-                prompt = 'forward-i-search'
-
+            prompt = 'reverse-i-search' if direction < 0 else 'forward-i-search'
             scroll = c.write_scrolling("%s`%s': %s" % (prompt, query, line))
             self._update_prompt_pos(scroll)
             self._clear_after()
@@ -180,8 +176,7 @@ class NotEmacsMode(basemode.BaseMode):
                 query += event.char
             elif event.keyinfo == init_event.keyinfo:
                 self._history.history_cursor += direction
-                line=searchfun(query)                
-                pass
+                line=searchfun(query)
             else:
                 if event.keysym != 'Return':
                     self._bell()
@@ -368,17 +363,17 @@ class NotEmacsMode(basemode.BaseMode):
         yanked right away. By default, this command is unbound.'''
         pass
 
-    def copy_region_to_clipboard(self, e): # ()
+    def copy_region_to_clipboard(self, e):    # ()
         '''Copy the text in the region to the windows clipboard.'''
         if self.enable_win32_clipboard:
-                mark=min(self.l_buffer.mark,len(self.l_buffer.line_buffer))
-                cursor=min(self.l_buffer.point,len(self.l_buffer.line_buffer))
-                if self.l_buffer.mark==-1:
-                        return
-                begin=min(cursor,mark)
-                end=max(cursor,mark)
-                toclipboard="".join(self.l_buffer.line_buffer[begin:end])
-                clipboard.SetClipboardText(str(toclipboard))
+            mark=min(self.l_buffer.mark,len(self.l_buffer.line_buffer))
+            cursor=min(self.l_buffer.point,len(self.l_buffer.line_buffer))
+            if self.l_buffer.mark==-1:
+                    return
+            begin=min(cursor,mark)
+            end=max(cursor,mark)
+            toclipboard="".join(self.l_buffer.line_buffer[begin:end])
+            clipboard.SetClipboardText(toclipboard)
 
     def copy_backward_word(self, e): # ()
         '''Copy the word before point to the kill buffer. The word
@@ -402,29 +397,33 @@ class NotEmacsMode(basemode.BaseMode):
         '''Paste windows clipboard'''
         reg=re.compile("\r?\n")
         if self.enable_win32_clipboard:
-                txt=clipboard.get_clipboard_text_and_convert(False)
-                t=reg.split(txt)
-                t=[row for row in t if row.strip()!=""] #remove empty lines
-                if t!=[""]:
-                    self.insert_text(t[0])
-                    self.add_history(self.l_buffer.copy())
-                    self.paste_line_buffer=t[1:]
-                    log("multi: %s"%self.paste_line_buffer)
-                    return True
-                else:
-                    return False
+            txt=clipboard.get_clipboard_text_and_convert(False)
+            t=reg.split(txt)
+            t=[row for row in t if row.strip()!=""] #remove empty lines
+            if t!=[""]:
+                self.insert_text(t[0])
+                self.add_history(self.l_buffer.copy())
+                self.paste_line_buffer=t[1:]
+                log(f"multi: {self.paste_line_buffer}")
+                return True
+            else:
+                return False
         
     def ipython_paste(self,e):
         '''Paste windows clipboard. If enable_ipython_paste_list_of_lists is 
         True then try to convert tabseparated data to repr of list of lists or 
         repr of array'''
         if self.enable_win32_clipboard:
-                txt=clipboard.get_clipboard_text_and_convert(
-                                                self.enable_ipython_paste_list_of_lists)
-                if self.enable_ipython_paste_for_paths:
-                        if len(txt)<300 and ("\t" not in txt) and ("\n" not in txt):
-                                txt=txt.replace("\\", "/").replace(" ", r"\ ")
-                self.insert_text(txt)
+            txt=clipboard.get_clipboard_text_and_convert(
+                                            self.enable_ipython_paste_list_of_lists)
+            if (
+                self.enable_ipython_paste_for_paths
+                and len(txt) < 300
+                and ("\t" not in txt)
+                and ("\n" not in txt)
+            ):
+                txt=txt.replace("\\", "/").replace(" ", r"\ ")
+            self.insert_text(txt)
 
     def yank(self, e): # (C-y)
         '''Yank the top of the kill ring into the buffer at point. '''

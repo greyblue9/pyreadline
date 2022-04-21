@@ -86,16 +86,16 @@ class Console(object):
         self.attr = System.Console.ForegroundColor
         self.saveattr = winattr[str(System.Console.ForegroundColor).lower()]
         self.savebg = System.Console.BackgroundColor
-        log('initial attr=%s' % self.attr)
+        log(f'initial attr={self.attr}')
 
     def _get(self):
         top = System.Console.WindowTop
-        log("WindowTop:%s"%top)
+        log(f"WindowTop:{top}")
         return top
 
     def _set(self, value):
         top = System.Console.WindowTop
-        log("Set WindowTop:old:%s,new:%s"%(top, value))
+        log(f"Set WindowTop:old:{top},new:{value}")
 
     WindowTop = property(_get, _set)
     del _get, _set
@@ -201,7 +201,7 @@ class Console(object):
         '''
         log('write_color("%s", %s)' % (text, attr))
         chunks = self.terminal_escape.split(text)
-        log('chunks=%s' % repr(chunks))
+        log(f'chunks={repr(chunks)}')
         bg = self.savebg
         n = 0 # count the characters we actually write, omitting the escapes
         if attr is None:#use attribute from initial console
@@ -211,10 +211,9 @@ class Console(object):
             bg = self.trtable[(0x00f0&attr)>>4]
         except TypeError:
             fg = attr
-            
+
         for chunk in chunks:
-            m = self.escape_parts.match(chunk)
-            if m:
+            if m := self.escape_parts.match(chunk):
                 log(m.group(1))
                 attr = ansicolor.get(m.group(1), self.attr)
             n += len(chunk)
@@ -280,10 +279,7 @@ class Console(object):
         x0, y0, x1, y1 = rect
         if attr is None:
             attr = self.attr
-        if fill:
-            rowfill = fill[:1] * abs(x1 - x0)
-        else:
-            rowfill = ' ' * abs(x1 - x0)
+        rowfill = fill[:1] * abs(x1 - x0) if fill else ' ' * abs(x1 - x0)
         for y in range(y0, y1):
                 System.Console.SetCursorPosition(x0, y)
                 self.write_color(rowfill, attr)
@@ -296,8 +292,7 @@ class Console(object):
     def scroll_window(self, lines):
         '''Scroll the window by the indicated number of lines.'''
         top = self.WindowTop + lines
-        if top < 0:
-            top = 0
+        top = max(top, 0)
         if top + System.Console.WindowHeight > System.Console.BufferHeight:
             top = System.Console.BufferHeight
         self.WindowTop = top
@@ -312,7 +307,7 @@ class Console(object):
             elif e.Key == System.ConsoleKey.PageUp:#PageUp
                 self.scroll_window(-12)
             elif str(e.KeyChar) == "\000":#Drop deadkeys
-                log("Deadkey: %s"%e)
+                log(f"Deadkey: {e}")
                 return event(self, e)
             else:
                 return event(self, e)
@@ -362,7 +357,7 @@ class event(Event):
         self.char = str(input.KeyChar)
         self.keycode = input.Key
         self.state = input.Modifiers
-        log("%s,%s,%s"%(input.Modifiers, input.Key, input.KeyChar))
+        log(f"{input.Modifiers},{input.Key},{input.KeyChar}")
         self.type = "KeyRelease"
         self.keysym = make_keysym(self.keycode)
         self.keyinfo = make_KeyPress(self.char, self.state, self.keycode)
@@ -390,10 +385,7 @@ def install_readline(hook):
             res = ""
         except EOFError:
             return None
-        if res[-1:] == "\n":
-            return res[:-1]
-        else:
-            return res
+        return res[:-1] if res.endswith("\n") else res
     class IronPythonWrapper(IronPythonConsole.IConsole):
         def ReadLine(self, autoIndentSize): 
             return hook_wrap()
@@ -418,7 +410,7 @@ if __name__ == '__main__':
     print()
     print("size", c.size())
     print('  some printed output')
-    for i in range(10):
+    for _ in range(10):
         e = c.getkeypress()
         print(e.Key, chr(e.KeyChar), ord(e.KeyChar), e.Modifiers)
     del c

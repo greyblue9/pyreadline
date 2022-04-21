@@ -95,8 +95,7 @@ def getformatname(format):
 def GetClipboardText():
     text = ""
     if OpenClipboard(0):
-        hClipMem = GetClipboardData(CF_UNICODETEXT)
-        if hClipMem:        
+        if hClipMem := GetClipboardData(CF_UNICODETEXT):
             text = wstring_at(GlobalLock(hClipMem))
             GlobalUnlock(hClipMem)
         CloseClipboard()

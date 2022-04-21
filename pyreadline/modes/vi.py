@@ -49,7 +49,7 @@ class ViMode(basemode.BaseMode):
         
     ### Methods below here are bindable emacs functions
 
-    def init_editing_mode(self, e): # (M-C-j)
+    def init_editing_mode(self, e):    # (M-C-j)
         '''Initialize vi editingmode'''
         self.show_all_if_ambiguous = 'on'
         self.key_dispatch = {}
@@ -70,7 +70,7 @@ class ViMode(basemode.BaseMode):
         self.vi_set_insert_mode (True)
         # make ' ' to ~ self insert
         for c in range(ord(' '), 127):
-            self._bind_key('%s' % chr(c), self.vi_key)
+            self._bind_key(f'{chr(c)}', self.vi_key)
         self._bind_key('BackSpace', self.vi_backspace)
         self._bind_key('Escape', self.vi_escape)
         self._bind_key('Return', self.vi_accept_line)
@@ -126,19 +126,21 @@ class ViMode(basemode.BaseMode):
         else:
             self._vi_do_backspace (self._vi_command)
 
-    def _vi_do_backspace (self, vi_cmd):
-        if self.vi_is_insert_mode or (self._vi_command and self._vi_command.is_search):
-            if self.l_buffer.point > 0:
-                self.l_buffer.point -= 1
-                if self.l_buffer.overwrite:
-                    try:
-                        prev = self._vi_undo_stack [self._vi_undo_cursor][1][self.l_buffer.point ]
-                        self.l_buffer.line_buffer [self.l_buffer.point] = prev
-                    except IndexError:
-                        del self.l_buffer.line_buffer [self.l_buffer.point ]
-                else:
-                    self.vi_save_line ()
+    def _vi_do_backspace(self, vi_cmd):
+        if (
+            self.vi_is_insert_mode
+            or (self._vi_command and self._vi_command.is_search)
+        ) and self.l_buffer.point > 0:
+            self.l_buffer.point -= 1
+            if self.l_buffer.overwrite:
+                try:
+                    prev = self._vi_undo_stack [self._vi_undo_cursor][1][self.l_buffer.point ]
+                    self.l_buffer.line_buffer [self.l_buffer.point] = prev
+                except IndexError:
                     del self.l_buffer.line_buffer [self.l_buffer.point ]
+            else:
+                self.vi_save_line ()
+                del self.l_buffer.line_buffer [self.l_buffer.point ]
 
     def vi_accept_line (self, e):
         if self._vi_command and self._vi_command.is_search:
@@ -226,9 +228,8 @@ class ViMode(basemode.BaseMode):
         self._bell ()
         return False
 
-    def vi_search_first (self):
-        text = ''.join (self.l_buffer.line_buffer [1:])
-        if text:
+    def vi_search_first(self):
+        if text := ''.join(self.l_buffer.line_buffer[1:]):
             self._vi_search_text = text
             self._vi_search_position = len (self._history.history) - 1
         elif self._vi_search_text:
@@ -291,12 +292,9 @@ class ViMode(basemode.BaseMode):
         self.vi_down (e)
         self.vi_save_line ()
 
-    def vi_complete (self, e):
+    def vi_complete(self, e):
         text = self.l_buffer.get_line_text ()
-        if text and not text.isspace ():
-            return self.complete (e)
-        else:
-            return self.vi_key (e)
+        return self.complete (e) if text and not text.isspace () else self.vi_key (e)
 
 # vi input states
 # sequence of possible states are in the order below
@@ -347,7 +345,7 @@ class ViCommand:
             8 : self.key_backspace,
         }
 
-    def add_char (self, char):
+    def add_char(self, char):
         self.lst_char.append (char)
         if self.state == _VI_BEGIN and self.readline.vi_is_insert_mode:
             self.readline.vi_save_line ()
@@ -379,7 +377,7 @@ class ViCommand:
         try:
             fcn_instance = self.dct_fcn [ord(char)]
         except:
-            fcn_instance = getattr (self, 'key_%s' % char, None)
+            fcn_instance = getattr(self, f'key_{char}', None)
         if fcn_instance:
             fcn_instance (char)
             return
@@ -551,17 +549,14 @@ class ViCommand:
         self.state = _VI_MOTION
         self.apply ()
 
-    def key_dot (self, char):
+    def key_dot(self, char):
         vi_cmd_edit = self.readline._vi_command_edit
         if not vi_cmd_edit:
             return
         if vi_cmd_edit.is_star:
             self.key_star (char)
             return
-        if self.has_multiplier ():
-            count = self.get_multiplier ()
-        else:
-            count = 0
+        count = self.get_multiplier () if self.has_multiplier () else 0
         # Create the ViCommand object after getting multipler from self
         # Side effect of the ViCommand creation is resetting of global multipliers
         vi_cmd = ViCommand (self.readline)
@@ -583,12 +578,11 @@ class ViCommand:
         self.readline.l_buffer.point= 1
         self.state = _VI_SEARCH
 
-    def key_star (self, char):
+    def key_star(self, char):
         self.is_star = True
         self.is_edit = True
         self.readline.vi_save_line ()
-        completions = self.readline._get_completions()
-        if completions:
+        if completions := self.readline._get_completions():
             text = ' '.join (completions) + ' '
             self.readline.l_buffer.line_buffer [self.readline.begidx : self.readline.endidx + 1] = list (text)
             prefix_len = self.readline.endidx - self.readline.begidx
@@ -603,10 +597,10 @@ class ViCommand:
         self.state = _VI_MOTION
         self.apply ()
 
-    def key_tilde (self, char):
+    def key_tilde(self, char):
         self.is_edit = True
         self.readline.vi_save_line ()
-        for i in range (self.get_multiplier()):
+        for _ in range (self.get_multiplier()):
             try:
                 c = self.readline.l_buffer.line_buffer [self.readline.l_buffer.point]
                 if c.isupper ():
@@ -888,7 +882,7 @@ class ViCommand:
             s = self.readline.l_buffer.line_buffer [index : self.readline.l_buffer.point + self.delete_right]
         self.readline._vi_yank_buffer = s
 
-    def delete (self):
+    def delete(self):
         self.readline.vi_save_line ()
         self.yank ()
 #         point=lineobj.Point(self.readline.l_buffer)
@@ -897,8 +891,11 @@ class ViCommand:
 #         return
         if self.pos_motion > self.readline.l_buffer.point:
             del self.readline.l_buffer.line_buffer [self.readline.l_buffer.point : self.pos_motion + self.delete_right]
-            if self.readline.l_buffer.point > len (self.readline.l_buffer.line_buffer):
-                self.readline.l_buffer.point = len (self.readline.l_buffer.line_buffer)
+            self.readline.l_buffer.point = min(
+                self.readline.l_buffer.point,
+                len(self.readline.l_buffer.line_buffer),
+            )
+
         else:
             index = max (0, self.pos_motion - self.delete_left)
             del self.readline.l_buffer.line_buffer [index : self.readline.l_buffer.point + self.delete_right]
@@ -933,13 +930,12 @@ class ViCommand:
         self.skip_multipler = True
         self.state = _VI_TEXT
 
-    def escape (self, char):
-        if self.state == _VI_TEXT:
-            if not self.skip_multipler:
-                times = self.get_multiplier ()
-                if times > 1 and self.text:
-                    extra = self.text * (times - 1)
-                    self.set_buffer (extra)
+    def escape(self, char):
+        if self.state == _VI_TEXT and not self.skip_multipler:
+            times = self.get_multiplier ()
+            if times > 1 and self.text:
+                extra = self.text * (times - 1)
+                self.set_buffer (extra)
         self.state = _VI_END
 
     def set_motion_argument (self, char):
@@ -981,8 +977,8 @@ class ViExternalEditor:
         except KeyError:
             return 'notepad'  # ouch
 
-    def run_editor (self, filename):
-        cmd = '%s %s' % (self.get_editor(), filename, )
+    def run_editor(self, filename):
+        cmd = f'{self.get_editor()} {filename}'
         self.run_command (cmd)
 
     def run_command (self, command):
@@ -993,8 +989,8 @@ class ViEvent:
         self.char = char
 
 # vi standalone functions
-def vi_is_word (char):
-    log ('xx vi_is_word: type(%s), %s' % (type(char), char, ))
+def vi_is_word(char):
+    log(f'xx vi_is_word: type({type(char)}), {char}')
     return char.isalpha() or char.isdigit() or char == '_'
 
 def vi_is_space (char):
@@ -1003,15 +999,14 @@ def vi_is_space (char):
 def vi_is_word_or_space (char):
     return vi_is_word (char) or vi_is_space (char)
 
-def vi_pos_word_short (line, index=0, count=1):
+def vi_pos_word_short(line, index=0, count=1):
     try:
-        for i in range(count):
-            in_word = vi_is_word (line[index])
-            if not in_word:
-                while not vi_is_word (line[index]):
+        for _ in range(count):
+            if in_word := vi_is_word(line[index]):
+                while vi_is_word (line[index]):
                     index += 1
             else:
-                while vi_is_word (line[index]):
+                while not vi_is_word (line[index]):
                     index += 1
             while vi_is_space (line[index]):
                 index += 1
@@ -1019,9 +1014,9 @@ def vi_pos_word_short (line, index=0, count=1):
     except IndexError:
         return len(line)
 
-def vi_pos_word_long (line, index=0, count=1):
+def vi_pos_word_long(line, index=0, count=1):
     try:
-        for i in range(count):
+        for _ in range(count):
             in_space = vi_is_space (line[index])
             if not in_space:
                 while not vi_is_space (line[index]):
@@ -1032,26 +1027,25 @@ def vi_pos_word_long (line, index=0, count=1):
     except IndexError:
         return len(line)
 
-def vi_pos_end_short (line, index=0, count=1):
+def vi_pos_end_short(line, index=0, count=1):
     try:
-        for i in range(count):
+        for _ in range(count):
             index += 1
             while vi_is_space (line[index]):
                 index += 1
-            in_word = vi_is_word (line[index])
-            if not in_word:
-                while not vi_is_word_or_space (line[index]):
+            if in_word := vi_is_word(line[index]):
+                while vi_is_word (line[index]):
                     index += 1
             else:
-                while vi_is_word (line[index]):
+                while not vi_is_word_or_space (line[index]):
                     index += 1
         return index - 1
     except IndexError:
         return max (0, len(line)-1)
 
-def vi_pos_end_long (line, index=0, count=1):
+def vi_pos_end_long(line, index=0, count=1):
     try:
-        for i in range(count):
+        for _ in range(count):
             index += 1
             while vi_is_space (line[index]):
                 index += 1
@@ -1071,15 +1065,14 @@ class vi_list (list):
             pass
         return list.__getitem__ (self, key)
 
-def vi_pos_back_short (line, index=0, count=1):
+def vi_pos_back_short(line, index=0, count=1):
     line = vi_list (line)
     try:
-        for i in range(count):
+        for _ in range(count):
             index -= 1
             while vi_is_space (line[index]):
                 index -= 1
-            in_word = vi_is_word (line[index])
-            if in_word:
+            if in_word := vi_is_word(line[index]):
                 while vi_is_word (line[index]):
                     index -= 1
             else:
@@ -1089,10 +1082,10 @@ def vi_pos_back_short (line, index=0, count=1):
     except IndexError:
         return 0
 
-def vi_pos_back_long (line, index=0, count=1):
+def vi_pos_back_long(line, index=0, count=1):
     line = vi_list (line)
     try:
-        for i in range(count):
+        for _ in range(count):
             index -= 1
             while vi_is_space (line[index]):
                 index -= 1
@@ -1102,9 +1095,9 @@ def vi_pos_back_long (line, index=0, count=1):
     except IndexError:
         return 0
 
-def vi_pos_find_char_forward (line, char, index=0, count=1):
+def vi_pos_find_char_forward(line, char, index=0, count=1):
     try:
-        for i in range(count):
+        for _ in range(count):
             index += 1
             while line [index] != char:
                 index += 1
@@ -1112,9 +1105,9 @@ def vi_pos_find_char_forward (line, char, index=0, count=1):
     except IndexError:
         return -1
 
-def vi_pos_find_char_backward (line, char, index=0, count=1):
+def vi_pos_find_char_backward(line, char, index=0, count=1):
     try:
-        for i in range(count):
+        for _ in range(count):
             index -= 1
             while 1:
                 if index < 0:

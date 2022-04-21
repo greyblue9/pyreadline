@@ -78,11 +78,8 @@ class ViExternalEditorTest (ViExternalEditor):
     def get_editor (self):
         return 'vim.exe'
 
-    def file_open (self, filename, mode):
-        if mode == 'w':
-            return self.sio_write
-        else:
-            return self.sio_read
+    def file_open(self, filename, mode):
+        return self.sio_write if mode == 'w' else self.sio_read
 
     def file_remove (self, filename):
         self.remove = filename
@@ -2142,12 +2139,11 @@ class Tests (unittest.TestCase):
 if __name__  == '__main__':
     Tester()
 
-    tested=list(ViModeTest.tested_commands.keys())    
-    tested.sort()
+    tested = sorted(ViModeTest.tested_commands.keys())
     print(" Tested functions ".center(60,"-"))
     print("\n".join(tested))
     print()
-    
+
     all_funcs=dict([(x.__name__,x) for x in list(ViModeTest().key_dispatch.values())])
     all_funcs=list(all_funcs.keys())
     not_tested=[x for x in all_funcs if x not in tested]

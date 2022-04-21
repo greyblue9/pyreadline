@@ -74,10 +74,11 @@ class BaseReadline(object):
             if string.startswith('#'):
                 return
             if string.startswith('set'):
-                m = re.compile(r'set\s+([-a-zA-Z0-9]+)\s+(.+)\s*$').match(string)
-                if m:
-                    var_name = m.group(1)
-                    val = m.group(2)
+                if m := re.compile(r'set\s+([-a-zA-Z0-9]+)\s+(.+)\s*$').match(
+                    string
+                ):
+                    var_name = m[1]
+                    val = m[2]
                     try:
                         setattr(self.mode, var_name.replace('-','_'), val)
                     except AttributeError:
@@ -85,10 +86,9 @@ class BaseReadline(object):
                 else:
                     log('bad set "%s"' % string)
                 return
-            m = re.compile(r'\s*(.+)\s*:\s*([-a-zA-Z]+)\s*$').match(string)
-            if m:
-                key = m.group(1)
-                func_name = m.group(2)
+            if m := re.compile(r'\s*(.+)\s*:\s*([-a-zA-Z]+)\s*$').match(string):
+                key = m[1]
+                func_name = m[2]
                 py_name = func_name.replace('-', '_')
                 try:
                     func = getattr(self.mode, py_name)
@@ -157,11 +157,11 @@ class BaseReadline(object):
         '''Clear readline history'''
         self.mode._history.clear_history()
 
-    def read_history_file(self, filename=None): 
+    def read_history_file(self, filename=None):
         '''Load a readline history file. The default filename is ~/.history.'''
         if filename is None:
             filename = self.mode._history.history_filename
-        log("read_history_file from %s"%ensure_unicode(filename))
+        log(f"read_history_file from {ensure_unicode(filename)}")
         self.mode._history.read_history_file(filename)
 
     def write_history_file(self, filename=None): 
@@ -324,7 +324,7 @@ class BaseReadline(object):
             self.mode._history.history_length = int(length)
 
         def allow_ctrl_c(mode):
-            log("allow_ctrl_c:%s:%s"%(self.allow_ctrl_c, mode))
+            log(f"allow_ctrl_c:{self.allow_ctrl_c}:{mode}")
             self.allow_ctrl_c = mode
  
         def setbellstyle(mode):
@@ -442,7 +442,7 @@ class Readline(BaseReadline):
         elif self.bell_style == 'audible':
             self.console.bell()
         else:
-            raise ReadlineError("Bellstyle %s unknown."%self.bell_style)
+            raise ReadlineError(f"Bellstyle {self.bell_style} unknown.")
 
     def _clear_after(self):
         c = self.console
@@ -570,7 +570,7 @@ class Readline(BaseReadline):
         self.ctrl_c_timeout = time.time()
         self._readline_from_keyboard()
         self.console.write('\r\n')
-        log('returning(%s)' % self.get_line_buffer())
+        log(f'returning({self.get_line_buffer()})')
         return self.get_line_buffer() + '\n'
 
     def handle_ctrl_c(self):
@@ -581,14 +581,13 @@ class Readline(BaseReadline):
         event.char = "c"
         event.keyinfo = KeyPress("c", shift=False, control=True, 
                                  meta=False, keyname=None)
-        if self.allow_ctrl_c:
-            now = time.time()
-            if (now - self.ctrl_c_timeout) < self.ctrl_c_tap_time_interval:
-                log("Raise KeyboardInterrupt")
-                raise KeyboardInterrupt
-            else:
-                self.ctrl_c_timeout = now
-        else:
+        if not self.allow_ctrl_c:
             raise KeyboardInterrupt
+        now = time.time()
+        if (now - self.ctrl_c_timeout) < self.ctrl_c_tap_time_interval:
+            log("Raise KeyboardInterrupt")
+            raise KeyboardInterrupt
+        else:
+            self.ctrl_c_timeout = now
         return event
 
